@@ -20,5 +20,6 @@ public class FileInfo {
     @Column(name = "name")
     private String name;
     @Column(name = "size")
-    private String size;
+    private long size; // in bytes
+    private ClientInfo client;
 }

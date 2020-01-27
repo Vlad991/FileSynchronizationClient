@@ -20,6 +20,9 @@ public class FilePart {
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
     private FilePartStatus status;
+    @Column(name = "is_first")
+    private boolean isFirst;
     private byte[] data;
     private int length;
+    private ClientInfo client;
 }
