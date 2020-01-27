@@ -1,43 +1,25 @@
 package com.filesynch.dto;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import javax.persistence.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@Entity
+@Table(name = "file_parts")
 public class FilePart {
+    @Id
+    private Long hashKey;
+    @ManyToOne
+    @JoinColumn(name = "file_info_id")
     private FileInfo fileInfo;
-    private String hashKey;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
+    private FilePartStatus status;
     private byte[] data;
     private int length;
-
-    public FilePart() {
-    }
-
-    public FileInfo getFileInfo() {
-        return fileInfo;
-    }
-
-    public void setFileInfo(FileInfo fileInfo) {
-        this.fileInfo = fileInfo;
-    }
-
-    public String getHashKey() {
-        return hashKey;
-    }
-
-    public void setHashKey(String hashKey) {
-        this.hashKey = hashKey;
-    }
-
-    public byte[] getData() {
-        return data;
-    }
-
-    public void setData(byte[] data) {
-        this.data = data;
-    }
-
-    public int getLength() {
-        return length;
-    }
-
-    public void setLength(int length) {
-        this.length = length;
-    }
 }

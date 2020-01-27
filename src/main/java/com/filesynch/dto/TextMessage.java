@@ -11,14 +11,12 @@ import javax.persistence.*;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "file_info")
-public class FileInfo {
+@Table(name = "text_messages")
+public class TextMessage {
     @Id
     @GeneratedValue(generator="increment")
     @GenericGenerator(name="increment", strategy = "increment")
     private Long id;
-    @Column(name = "name")
-    private String name;
-    @Column(name = "size")
-    private String size;
+    @Column(name = "message")
+    private String message;
 }
