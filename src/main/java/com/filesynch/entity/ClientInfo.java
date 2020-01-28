@@ -1,33 +1,35 @@
-package com.filesynch.dto;
+package com.filesynch.entity;
 
+import com.filesynch.dto.ClientStatus;
+import org.hibernate.annotations.GenericGenerator;
+
+import javax.persistence.*;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
 
-public class ClientInfo implements Serializable {
+@Entity
+@Table(name = "client_data")
+public class ClientInfo { // only one row int table
+    @Id
+    @GeneratedValue(generator = "increment")
+    @GenericGenerator(name = "increment", strategy = "increment")
     private Long id;
+    @Column(name = "login")
     private String login; // name to be logged in to server (login)
+    @Column(name = "ip_address")
     private String ipAddress;
+    @Column(name = "pc_name")
     private String pcName;
+    @Column(name = "pc_model")
     private String pcModel;
+    @Column(name = "status")
     private ClientStatus status;
-    static final long serialVersionUID = 42L;
 
 
     public ClientInfo() {
-        getIpAddress();
-        try {
-            getPcName();
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        }
-        getPcModel();
-    }
-
-    public String getIpAddress() {
         try {
             URL url_name = new URL("http://bot.whatismyipaddress.com");
             BufferedReader sc = new BufferedReader(new InputStreamReader(url_name.openStream()));
@@ -35,6 +37,18 @@ public class ClientInfo implements Serializable {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        try {
+            pcName = getInetAddress().getHostName();
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+        String nameOS = System.getProperty("os.name");
+        String osType = System.getProperty("os.arch");
+        String osVersion = System.getProperty("os.version");
+        pcModel = "OS Name: " + nameOS + ", OS Type: " + osType + ", OS Version: " + osVersion;
+    }
+
+    public String getIpAddress() {
         return ipAddress;
     }
 
@@ -46,16 +60,11 @@ public class ClientInfo implements Serializable {
         this.login = login;
     }
 
-    public String getPcName() throws UnknownHostException {
-        pcName = getInetAddress().getHostName();
+    public String getPcName() {
         return pcName;
     }
 
     public String getPcModel() {
-        String nameOS = System.getProperty("os.name");
-        String osType = System.getProperty("os.arch");
-        String osVersion = System.getProperty("os.version");
-        pcModel = "OS Name: " + nameOS + ", OS Type: " + osType + ", OS Version: " + osVersion;
         return pcModel;
     }
 

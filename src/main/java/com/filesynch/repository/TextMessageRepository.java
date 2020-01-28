@@ -1,6 +1,6 @@
 package com.filesynch.repository;
 
-import com.filesynch.dto.TextMessage;
+import com.filesynch.entity.TextMessage;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
