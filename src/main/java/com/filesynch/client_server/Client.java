@@ -14,7 +14,6 @@ import com.filesynch.repository.ClientInfoRepository;
 import com.filesynch.repository.FileInfoRepository;
 import com.filesynch.repository.FilePartRepository;
 import com.filesynch.repository.TextMessageRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +22,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.Optional;
 
 @Component
 public class Client extends UnicastRemoteObject implements ClientInt {
@@ -37,15 +37,12 @@ public class Client extends UnicastRemoteObject implements ClientInt {
     private FileInfoRepository fileInfoRepository;
     private FilePartRepository filePartRepository;
     private TextMessageRepository textMessageRepository;
-    private final int FILE_MULTIPLICITY = 10;
+    private final int FILE_PART_SIZE = 1; // in bytes (1 B)
     private final String FILE_INPUT_DIRECTORY = "src/main/resources/in/";
     private final String FILE_OUTPUT_DIRECTORY = "src/main/resources/out/";
 
     public Client(ServerInt serverInt) throws RemoteException {
         super();
-        this.clientInfoDTO = new ClientInfoDTO();
-        this.server = serverInt;
-        clientInfoDTO.setStatus(ClientStatus.CLIENT_STANDBY);
         AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext();
         ctx.register(DataConfig.class);
         ctx.refresh();
@@ -57,6 +54,18 @@ public class Client extends UnicastRemoteObject implements ClientInt {
         fileInfoConverter = new FileInfoConverter(clientInfoConverter);
         filePartConverter = new FilePartConverter(clientInfoConverter, fileInfoConverter);
         textMessageConverter = new TextMessageConverter(clientInfoConverter);
+
+        Optional<ClientInfo> clientInfoOptional = clientInfoRepository.findById(1L);
+        if (!clientInfoOptional.isPresent()) {
+            clientInfo = new ClientInfo();
+            clientInfo.setStatus(ClientStatus.CLIENT_STANDBY);
+            clientInfoDTO = clientInfoConverter.convertToDto(clientInfo);
+        } else {
+            clientInfo = clientInfoOptional.get();
+            clientInfo.setStatus(ClientStatus.CLIENT_STANDBY);
+            clientInfoDTO = clientInfoConverter.convertToDto(clientInfo);
+        }
+        this.server = serverInt;
     }
 
     public boolean sendLoginToClient(String login) {
@@ -105,9 +114,9 @@ public class Client extends UnicastRemoteObject implements ClientInt {
             FilePart filePart = filePartConverter.convertToEntity(filePartDTO);
             filePart.setClient(clientInfo);
             FileInfo fileInfo = fileInfoRepository.findByNameAndSizeAndClient(
-                            filePart.getFileInfo().getName(),
-                            filePart.getFileInfo().getSize(),
-                            clientInfo);
+                    filePart.getFileInfo().getName(),
+                    filePart.getFileInfo().getSize(),
+                    clientInfo);
             if (fileInfo != null) {
                 filePart.setFileInfo(fileInfo);
             }
@@ -122,82 +131,108 @@ public class Client extends UnicastRemoteObject implements ClientInt {
 
     // calls here
     public boolean loginToServer() {
-        clientInfo.setStatus(ClientStatus.CLIENT_FIRST);
-        clientInfoDTO.setStatus(ClientStatus.CLIENT_FIRST);
-        String login = null;
-        try {
-            login = server.loginToServer(this);
-        } catch (RemoteException e) {
-            e.printStackTrace();
+        setClientStatus(ClientStatus.CLIENT_FIRST);
+        if (!isLoggedIn()) {
+            String login = null;
+            try {
+                login = server.loginToServer(this);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+            if (login == null) {
+                System.out.println("Log in failed!");
+                return false;
+            }
+            clientInfo.setLogin(login);
+            clientInfo.setStatus(ClientStatus.CLIENT_SECOND);
+            clientInfoDTO.setLogin(login);
+            clientInfoDTO.setStatus(ClientStatus.CLIENT_SECOND);
+            clientInfoRepository.save(clientInfo);
+            System.out.println("Log in success!");
+        } else {
+            try {
+                server.loginToServer(this);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
         }
-        if (login == null) {
-            System.out.println("Log in failed!");
-            return false;
-        }
-        clientInfo.setLogin(login);
-        clientInfo.setStatus(ClientStatus.CLIENT_SECOND);
-        clientInfoDTO.setLogin(login);
-        clientInfoDTO.setStatus(ClientStatus.CLIENT_SECOND);
-        System.out.println("Log in success!");
         return true;
     }
 
     // calls here
     public String sendTextMessageToServer(String message) {
-        clientInfo.setStatus(ClientStatus.CLIENT_WORK);
-        clientInfoDTO.setStatus(ClientStatus.CLIENT_WORK);
-        String answer = null;
-        try {
-            answer = server.sendAndReceiveTextMessageFromServer(clientInfo.getLogin(), message);
-        } catch (RemoteException e) {
-            e.printStackTrace();
+        setClientStatus(ClientStatus.CLIENT_WORK);
+        if (isLoggedIn()) {
+            String answer = null;
+            try {
+                answer = server.sendAndReceiveTextMessageFromServer(clientInfo.getLogin(), message);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+            // todo save TextMessage to db
+            System.out.println(answer);
+            return answer;
+        } else {
+            return "You are not logged in!";
         }
-        // todo save TextMessage to db
-        System.out.println(answer);
-        return answer;
     }
 
     // this is cycle for sending file parts from client to server, it calls here
-    public boolean sendFileToServer(String filename) throws RemoteException {
-        clientInfo.setStatus(ClientStatus.CLIENT_WORK);
-        clientInfoDTO.setStatus(ClientStatus.CLIENT_WORK);
-        try {
-            String filePathname = FILE_OUTPUT_DIRECTORY + filename;
-            File file = new File(filePathname);
-            FileInputStream in = new FileInputStream(file);
+    public boolean sendFileToServer(String filename) {
+        if (isLoggedIn()) {
+            setClientStatus(ClientStatus.CLIENT_WORK);
+            try {
+                String filePathname = FILE_OUTPUT_DIRECTORY + filename;
+                File file = new File(filePathname);
+                FileInputStream in = new FileInputStream(file);
 
-            FileInfoDTO fileInfoDTO = new FileInfoDTO();
-            fileInfoDTO.setName(filename);
-            fileInfoDTO.setSize(file.length());
-            fileInfoDTO.setClient(clientInfoDTO);
-            server.sendFileInfoToServer(clientInfoDTO.getLogin(), fileInfoDTO);
-
-            byte[] fileData = new byte[1024 * 1024];
-            int fileLength = in.read(fileData);
-            boolean step = true;
-            while (fileLength > 0) {
-                System.out.println(fileLength);
-                FilePartDTO filePartDTO = new FilePartDTO();
-                if (step) {
-                    filePartDTO.setFirst(true);
-                } else {
-                    filePartDTO.setFirst(false);
-                    step = false;
-                }
-                filePartDTO.setHashKey((long) fileData.hashCode());
-                filePartDTO.setFileInfoDTO(fileInfoDTO);
-                filePartDTO.setData(fileData);
-                filePartDTO.setLength(fileLength);
-                filePartDTO.setStatus(FilePartStatus.NOT_SENT);
+                FileInfoDTO fileInfoDTO = new FileInfoDTO();
+                fileInfoDTO.setName(filename);
+                fileInfoDTO.setSize(file.length());
                 fileInfoDTO.setClient(clientInfoDTO);
-                System.out.println(server.sendFilePartToServer(clientInfoDTO.getLogin(), filePartDTO));
-                // todo check for "true" from method sendFilePart()!!!!!!!!!!!!
-                fileLength = in.read(fileData);
+                server.sendFileInfoToServer(clientInfoDTO.getLogin(), fileInfoDTO);
+
+                byte[] fileData = new byte[FILE_PART_SIZE];
+                int fileLength = in.read(fileData);
+                boolean step = true;
+                while (fileLength > 0) {
+                    System.out.println(fileLength);
+                    FilePartDTO filePartDTO = new FilePartDTO();
+                    if (step) {
+                        filePartDTO.setFirst(true);
+                    } else {
+                        filePartDTO.setFirst(false);
+                        step = false;
+                    }
+                    filePartDTO.setHashKey((long) fileData.hashCode());
+                    filePartDTO.setFileInfoDTO(fileInfoDTO);
+                    filePartDTO.setData(fileData);
+                    filePartDTO.setLength(fileLength);
+                    filePartDTO.setStatus(FilePartStatus.NOT_SENT);
+                    filePartDTO.setClient(clientInfoDTO);
+                    System.out.println(server.sendFilePartToServer(clientInfoDTO.getLogin(), filePartDTO));
+                    // todo check for "true" from method sendFilePart()!!!!!!!!!!!!
+                    fileLength = in.read(fileData);
+                    Thread.sleep(5000);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                return false;
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } else {
+            System.out.println("You are not logged in!");
             return false;
         }
+
         return true;
+    }
+
+    private void setClientStatus(ClientStatus clientStatus) {
+        clientInfo.setStatus(clientStatus);
+        clientInfoDTO.setStatus(clientStatus);
+    }
+
+    private boolean isLoggedIn() {
+        return clientInfo.getLogin() != null;
     }
 }

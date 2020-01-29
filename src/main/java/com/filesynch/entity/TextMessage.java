@@ -20,4 +20,7 @@ public class TextMessage {
     private Long id;
     @Column(name = "message")
     private String message;
+    @ManyToOne
+    @JoinColumn(name = "client_id")
+    private ClientInfo client;
 }
