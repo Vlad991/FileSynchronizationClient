@@ -14,9 +14,11 @@ import com.filesynch.repository.ClientInfoRepository;
 import com.filesynch.repository.FileInfoRepository;
 import com.filesynch.repository.FilePartRepository;
 import com.filesynch.repository.TextMessageRepository;
+import lombok.Setter;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.stereotype.Component;
 
+import javax.swing.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -40,6 +42,10 @@ public class Client extends UnicastRemoteObject implements ClientInt {
     private final int FILE_PART_SIZE = 1; // in bytes (1 B)
     private final String FILE_INPUT_DIRECTORY = "src/main/resources/in/";
     private final String FILE_OUTPUT_DIRECTORY = "src/main/resources/out/";
+    @Setter
+    private JTextArea log;
+    @Setter
+    private JProgressBar fileProgressBar;
 
     public Client(ServerInt serverInt) throws RemoteException {
         super();
@@ -85,10 +91,14 @@ public class Client extends UnicastRemoteObject implements ClientInt {
         textMessage.setMessage(message);
         textMessageRepository.save(textMessage);
         System.out.println(message);
+        log.append(message);
+        log.append("\n");
     }
 
     public boolean sendCommandToClient(String command) {
         System.out.println(command);
+        log.append(command);
+        log.append("\n");
         return true;
     }
 
@@ -97,6 +107,8 @@ public class Client extends UnicastRemoteObject implements ClientInt {
         fileInfo.setClient(clientInfo);
         fileInfoRepository.save(fileInfo);
         System.out.println(fileInfo);
+        log.append(fileInfo.toString());
+        log.append("\n");
         return true;
     }
 
@@ -122,6 +134,8 @@ public class Client extends UnicastRemoteObject implements ClientInt {
             }
             filePartRepository.save(filePart);
             System.out.println(filePart);
+            log.append(filePart.toString());
+            log.append("\n");
         } catch (Exception e) {
             e.printStackTrace();
             return false;
@@ -141,6 +155,8 @@ public class Client extends UnicastRemoteObject implements ClientInt {
             }
             if (login == null) {
                 System.out.println("Log in failed!");
+                log.append("Log in failed!");
+                log.append("\n");
                 return false;
             }
             clientInfo.setLogin(login);
@@ -149,6 +165,8 @@ public class Client extends UnicastRemoteObject implements ClientInt {
             clientInfoDTO.setStatus(ClientStatus.CLIENT_SECOND);
             clientInfoRepository.save(clientInfo);
             System.out.println("Log in success!");
+            log.append("Log in success!");
+            log.append("\n");
         } else {
             try {
                 server.loginToServer(this);
@@ -171,6 +189,8 @@ public class Client extends UnicastRemoteObject implements ClientInt {
             }
             // todo save TextMessage to db
             System.out.println(answer);
+            log.append(answer);
+            log.append("\n");
             return answer;
         } else {
             return "You are not logged in!";
@@ -195,8 +215,13 @@ public class Client extends UnicastRemoteObject implements ClientInt {
                 byte[] fileData = new byte[FILE_PART_SIZE];
                 int fileLength = in.read(fileData);
                 boolean step = true;
+                fileProgressBar.setMinimum(0);
+                fileProgressBar.setMaximum((int) fileInfoDTO.getSize());
+                int progressValue = 0;
                 while (fileLength > 0) {
                     System.out.println(fileLength);
+                    log.append(String.valueOf(fileLength));
+                    log.append("\n");
                     FilePartDTO filePartDTO = new FilePartDTO();
                     if (step) {
                         filePartDTO.setFirst(true);
@@ -210,10 +235,15 @@ public class Client extends UnicastRemoteObject implements ClientInt {
                     filePartDTO.setLength(fileLength);
                     filePartDTO.setStatus(FilePartStatus.NOT_SENT);
                     filePartDTO.setClient(clientInfoDTO);
-                    System.out.println(server.sendFilePartToServer(clientInfoDTO.getLogin(), filePartDTO));
+                    boolean result = server.sendFilePartToServer(clientInfoDTO.getLogin(), filePartDTO);
+                    System.out.println(result);
+                    log.append(String.valueOf(result));
+                    log.append("\n");
                     // todo check for "true" from method sendFilePart()!!!!!!!!!!!!
                     fileLength = in.read(fileData);
-                    Thread.sleep(5000);
+                    progressValue += FILE_PART_SIZE;
+                    fileProgressBar.setValue(progressValue);
+                    Thread.sleep(2000);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -221,6 +251,8 @@ public class Client extends UnicastRemoteObject implements ClientInt {
             }
         } else {
             System.out.println("You are not logged in!");
+            log.append("You are not logged in!");
+            log.append("\n");
             return false;
         }
 

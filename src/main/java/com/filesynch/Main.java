@@ -2,28 +2,60 @@ package com.filesynch;
 
 import com.filesynch.client_server.Client;
 import com.filesynch.client_server.ServerInt;
+import com.filesynch.gui.ConnectToServer;
+import com.filesynch.gui.FileSynchronizationClient;
 
+import javax.swing.*;
 import java.rmi.Naming;
 import java.util.Scanner;
 
 public class Main {
+    public static JFrame connectToServerFrame;
+    public static JFrame clientFrame;
+    public static FileSynchronizationClient fileSynchronizationClient;
+    public static ServerInt server;
+    public static Client client;
+
     public static void main(String[] args) {
         if (System.getSecurityManager() == null) {
             System.setSecurityManager(new SecurityManager());
         }
+        connectToServerFrame = new JFrame("ConnectToServer");
+        connectToServerFrame.setContentPane(new ConnectToServer().getJPanelMain());
+        connectToServerFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        connectToServerFrame.pack();
+        connectToServerFrame.setLocationRelativeTo(null);
+        connectToServerFrame.setVisible(true);
+    }
 
+    public static void connectToServer(String ip, String port, String address) {
+        fileSynchronizationClient = new FileSynchronizationClient();
         try {
-            ServerInt server = (ServerInt) Naming.lookup("rmi://localhost/fs");
-            Client c = new Client(server);
-            c.loginToServer();
-            c.sendTextMessageToServer("Hello!!!");
-            //sendMessages(c);
-            sendFiles(c);
-            //c.sendFileToServer("video.mp4");
-            System.out.println("End.....");
-        } catch (Exception e) {
-            e.printStackTrace();
+            server = (ServerInt) Naming.lookup("rmi://" + ip + ":" + port + "/" + address);
+            client = new Client(server);
+            client.setLog(fileSynchronizationClient.getJTextAreaLog());
+            client.loginToServer();
+            client.sendTextMessageToServer("Hello! I'm connected client!");
+        } catch (Exception ex) {
+            ex.printStackTrace();
         }
+
+        connectToServerFrame.setVisible(false);
+        clientFrame = new JFrame("Client");
+        clientFrame.setContentPane(fileSynchronizationClient.getJPanelClient());
+        clientFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        clientFrame.pack();
+        clientFrame.setLocationRelativeTo(null);
+        clientFrame.setVisible(true);
+        client.setFileProgressBar(fileSynchronizationClient.getJProgressBarFile());
+    }
+
+    public static void sendMessage(String message) {
+        client.sendTextMessageToServer(message);
+    }
+
+    public static void sendFile(String file) {
+        client.sendFileToServer(file);
     }
 
     public static void sendMessages(Client c) {
