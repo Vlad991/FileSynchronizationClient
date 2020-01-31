@@ -6,8 +6,15 @@ import com.filesynch.gui.ConnectToServer;
 import com.filesynch.gui.FileSynchronizationClient;
 
 import javax.swing.*;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.rmi.Naming;
+import java.util.List;
 import java.util.Scanner;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class Main {
     public static JFrame connectToServerFrame;
@@ -20,7 +27,7 @@ public class Main {
         if (System.getSecurityManager() == null) {
             System.setSecurityManager(new SecurityManager());
         }
-        connectToServerFrame = new JFrame("ConnectToServer");
+        connectToServerFrame = new JFrame("Connect To Server");
         connectToServerFrame.setContentPane(new ConnectToServer().getJPanelMain());
         connectToServerFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         connectToServerFrame.pack();
@@ -35,13 +42,13 @@ public class Main {
             client = new Client(server);
             client.setLog(fileSynchronizationClient.getJTextAreaLog());
             client.loginToServer();
-            client.sendTextMessageToServer("Hello! I'm connected client!");
+            client.sendTextMessageToServer("Connected client: " + client.getClientInfo().getLogin());
         } catch (Exception ex) {
             ex.printStackTrace();
         }
 
         connectToServerFrame.setVisible(false);
-        clientFrame = new JFrame("Client");
+        clientFrame = new JFrame("File Synchronization Client");
         clientFrame.setContentPane(fileSynchronizationClient.getJPanelClient());
         clientFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         clientFrame.pack();
@@ -56,6 +63,18 @@ public class Main {
 
     public static void sendFile(String file) {
         client.sendFileToServer(file);
+    }
+
+    public static void sendAllFiles() {
+        try (Stream<Path> walk = Files.walk(Paths.get(client.FILE_OUTPUT_DIRECTORY.substring(0,client.FILE_OUTPUT_DIRECTORY.length() - 1)))) {
+            List<String> result = walk.filter(Files::isRegularFile)
+                    .map(x -> x.toString()).collect(Collectors.toList());
+            for (String filePath : result) {
+                sendFile(filePath.replace(client.FILE_OUTPUT_DIRECTORY, ""));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public static void sendMessages(Client c) {

@@ -35,6 +35,8 @@ public class FileSynchronizationClient {
     private JLabel jLabelCommand;
     @Getter
     private JProgressBar jProgressBarFile;
+    private JButton sendAllFilesButton;
+    private JButton updateDBButton;
 
     public FileSynchronizationClient() {
         jButtonTextMessage.addActionListener(new ActionListener() {
@@ -52,6 +54,14 @@ public class FileSynchronizationClient {
                     Main.sendFile(file);
                 };
                 new Thread(task).start();
+            }
+        });
+        sendAllFilesButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                new Thread(() -> {
+                    Main.sendAllFiles();
+                }).start();
             }
         });
     }

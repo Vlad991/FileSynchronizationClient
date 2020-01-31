@@ -14,6 +14,7 @@ import com.filesynch.repository.ClientInfoRepository;
 import com.filesynch.repository.FileInfoRepository;
 import com.filesynch.repository.FilePartRepository;
 import com.filesynch.repository.TextMessageRepository;
+import lombok.Getter;
 import lombok.Setter;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.stereotype.Component;
@@ -29,6 +30,7 @@ import java.util.Optional;
 @Component
 public class Client extends UnicastRemoteObject implements ClientInt {
     private ClientInfoDTO clientInfoDTO;
+    @Getter
     private ClientInfo clientInfo;
     private ServerInt server;
     private ClientInfoConverter clientInfoConverter;
@@ -40,8 +42,8 @@ public class Client extends UnicastRemoteObject implements ClientInt {
     private FilePartRepository filePartRepository;
     private TextMessageRepository textMessageRepository;
     private final int FILE_PART_SIZE = 1; // in bytes (1 B)
-    private final String FILE_INPUT_DIRECTORY = "src/main/resources/in/";
-    private final String FILE_OUTPUT_DIRECTORY = "src/main/resources/out/";
+    public final String FILE_INPUT_DIRECTORY = "src/main/resources/in/";
+    public final String FILE_OUTPUT_DIRECTORY = "src/main/resources/out/";
     @Setter
     private JTextArea log;
     @Setter
