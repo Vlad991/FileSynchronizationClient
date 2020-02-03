@@ -25,6 +25,9 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -114,17 +117,38 @@ public class Client extends UnicastRemoteObject implements ClientInt {
         return true;
     }
 
+    @Override
+    public FilePartDTO getFirstNotSentFilePartFromClient(FileInfoDTO fileInfoDTO) throws RemoteException {
+        FileInfo fileInfo = fileInfoRepository
+                .findByNameAndSizeAndClient_Login(
+                        fileInfoDTO.getName(),
+                        fileInfoDTO.getSize(),
+                        fileInfoDTO.getClient().getLogin());
+        List<FilePart> filePartList = filePartRepository.findAllByFileInfo(fileInfo);
+        Collections.sort(filePartList, new Comparator<FilePart>() {
+            public int compare(FilePart o1, FilePart o2) {
+                return Integer.compare(o1.getOrder(), o2.getOrder());
+            }
+        });
+        FilePart firstNotSentFilePart = filePartList.stream()
+                .filter(fp -> (fp.getStatus() == FilePartStatus.NOT_SENT))
+                .findFirst()
+                .get();
+        return filePartConverter.convertToDto(firstNotSentFilePart);
+    }
+
     //todo (not correct)?
     public boolean sendFilePartToClient(FilePartDTO filePartDTO) {
         try {
             File file = new File(FILE_INPUT_DIRECTORY + filePartDTO.getFileInfoDTO().getName());
-            if (filePartDTO.isFirst()) {
+            if (filePartDTO.getOrder() == 1) {
                 file.createNewFile();
             }
             FileOutputStream out = new FileOutputStream(file, true);
             out.write(filePartDTO.getData(), 0, filePartDTO.getLength());
             out.flush();
             out.close();
+            filePartDTO.setStatus(FilePartStatus.SENT);
             FilePart filePart = filePartConverter.convertToEntity(filePartDTO);
             filePart.setClient(clientInfo);
             FileInfo fileInfo = fileInfoRepository.findByNameAndSizeAndClient(
@@ -216,7 +240,7 @@ public class Client extends UnicastRemoteObject implements ClientInt {
 
                 byte[] fileData = new byte[FILE_PART_SIZE];
                 int fileLength = in.read(fileData);
-                boolean step = true;
+                int step = 1;
                 fileProgressBar.setMinimum(0);
                 fileProgressBar.setMaximum((int) fileInfoDTO.getSize());
                 int progressValue = 0;
@@ -225,12 +249,8 @@ public class Client extends UnicastRemoteObject implements ClientInt {
                     log.append(String.valueOf(fileLength));
                     log.append("\n");
                     FilePartDTO filePartDTO = new FilePartDTO();
-                    if (step) {
-                        filePartDTO.setFirst(true);
-                    } else {
-                        filePartDTO.setFirst(false);
-                        step = false;
-                    }
+                    filePartDTO.setOrder(step);
+                    step++;
                     filePartDTO.setHashKey((long) fileData.hashCode());
                     filePartDTO.setFileInfoDTO(fileInfoDTO);
                     filePartDTO.setData(fileData);

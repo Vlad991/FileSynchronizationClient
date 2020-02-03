@@ -8,4 +8,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface FileInfoRepository extends JpaRepository<FileInfo, Long> {
     FileInfo findByNameAndSizeAndClient(String name, long size, ClientInfo clientInfo);
+    FileInfo findByNameAndSizeAndClient_Login(String name, long size, String login);
 }
