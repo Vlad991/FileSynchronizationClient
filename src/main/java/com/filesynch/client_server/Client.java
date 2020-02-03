@@ -124,7 +124,19 @@ public class Client extends UnicastRemoteObject implements ClientInt {
                         fileInfoDTO.getName(),
                         fileInfoDTO.getSize(),
                         fileInfoDTO.getClient().getLogin());
+        if (fileInfo == null) {
+            FilePartDTO filePartDTO = new FilePartDTO();
+            filePartDTO.setOrder(1);
+            filePartDTO.setStatus(FilePartStatus.NOT_SENT);
+            return filePartDTO;
+        }
         List<FilePart> filePartList = filePartRepository.findAllByFileInfo(fileInfo);
+        if (filePartList.size() == 0) {
+            FilePartDTO filePartDTO = new FilePartDTO();
+            filePartDTO.setOrder(1);
+            filePartDTO.setStatus(FilePartStatus.NOT_SENT);
+            return filePartDTO;
+        }
         Collections.sort(filePartList, new Comparator<FilePart>() {
             public int compare(FilePart o1, FilePart o2) {
                 return Integer.compare(o1.getOrder(), o2.getOrder());

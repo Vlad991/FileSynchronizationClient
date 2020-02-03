@@ -24,9 +24,9 @@ public class Main {
     public static Client client;
 
     public static void main(String[] args) {
-        if (System.getSecurityManager() == null) {
-            System.setSecurityManager(new SecurityManager());
-        }
+//        if (System.getSecurityManager() == null) {
+//            System.setSecurityManager(new SecurityManager());
+//        }
         connectToServerFrame = new JFrame("Connect To Server");
         connectToServerFrame.setContentPane(new ConnectToServer().getJPanelMain());
         connectToServerFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
